@@ -89,7 +89,7 @@ function my_em_event_attendee_metabox(){
 
 
 
-		/////////////   		metabox for : UPSELL   		/////////////////
+		///////////////   		metabox for : UPSELL   		/////////////////
 
 function my_em_event_upsell_boxes(){ 
 	add_meta_box('em-event-upsell', 'Upsell Information', 'my_em_event_upsell_metabox','tribe_events', 'side','low');
