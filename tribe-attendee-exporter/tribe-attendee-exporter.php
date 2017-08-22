@@ -32,8 +32,17 @@ function my_em_event_attendee_save(){
 		$eventId 	= $_POST['post_ID'];
 		update_post_meta($eventId,'all_export_exclude',$_POST['prep_event_fields']);
 	}
+	if(isset($_POST['prep_upsell_fields']) && $_POST['prep_upsell_fields'] != null ){
+		$eventId 	= $_POST['post_ID'];
+		update_post_meta($eventId,'all_export_exclude_upsell',$_POST['prep_upsell_fields']);
+	}
+	if(isset($_POST['prep_order_fields']) && $_POST['prep_order_fields'] != null ){
+		$eventId 	= $_POST['post_ID'];
+		update_post_meta($eventId,'all_export_exclude_order',$_POST['prep_order_fields']);
+	}
 }
 
+		/////////////   		metabox for : ATTENDEE   		/////////////////
 
 function my_em_event_attendee_boxes(){ 
 	add_meta_box('em-event-attendee', 'Attendee Information', 'my_em_event_attendee_metabox','tribe_events', 'side','low');
@@ -56,7 +65,7 @@ function my_em_event_attendee_metabox(){
 	$prep_event_fields_data = get_post_meta($eventId ,'all_export_exclude',true);
 	
 	ob_start();  ?>
-		<p> Check those fields that do not need to include in all export csv file. </p> <br>
+		<p> Check those fields that do not need to include in Tribe-All-Events-Export (csv) file. </p> <br>
 	<?php
 	foreach ($eventArray as $eventKey => $eventValue) {   
 			?>
@@ -77,6 +86,145 @@ function my_em_event_attendee_metabox(){
 	print_r($output);
 	
 }
+
+
+
+		/////////////   		metabox for : UPSELL   		/////////////////
+
+function my_em_event_upsell_boxes(){ 
+	add_meta_box('em-event-upsell', 'Upsell Information', 'my_em_event_upsell_metabox','tribe_events', 'side','low');
+}
+add_action('add_meta_boxes', 'my_em_event_upsell_boxes');
+
+function my_em_event_upsell_metabox(){ 
+	$eventId 			= get_the_ID(); 	//Currnt event id
+	$fields 			= array();
+	$fields 			= $variable = get_field('upsells_shortcode', $eventId); 
+	if(!$fields) return false;
+
+	$upsellIds 			= getShortcodeParam($fields);
+	if(!$upsellIds) return false;
+
+	$eventFields 		= array();
+	$eventArray 		= array();
+	$prep_event_fields_data = array();
+
+	foreach ($upsellIds as $keyfields => $valuefields) {
+
+		$eventFields['slug'] 	= $valuefields;
+		$eventFields['name'] 	= get_the_title( $valuefields );
+		$eventArray [] 			= $eventFields;			
+	} 
+	$prep_event_fields_data = get_post_meta($eventId ,'all_export_exclude_upsell',true);
+	
+	ob_start();  ?>
+		<p> Check those fields that do not need to include in Tribe-All-Events-Export (csv) file. </p> <br>
+	<?php
+	foreach ($eventArray as $eventKey => $eventValue) {   
+			?>
+			<input type="checkbox" name="prep_upsell_fields[]" 
+				<?php 
+					if(in_array($eventValue['slug'], $prep_event_fields_data)) 
+						echo "checked";
+				?>
+				value="<?php echo $eventValue['slug']  ?>"
+			>
+			<?php echo $eventValue['name'] ?>
+			<br>
+			<?php 
+	}
+
+	$output .= ob_get_contents();
+	ob_end_clean();
+	print_r($output);
+	
+}
+		/////////////   		metabox for : ORDER DETAILS   		/////////////////
+
+function my_em_event_order_boxes(){ 
+	add_meta_box('em-event-order', 'Order Details', 'my_em_event_order_metabox','tribe_events', 'side','low');
+}
+add_action('add_meta_boxes', 'my_em_event_order_boxes');
+
+function my_em_event_order_metabox(){ 
+	$eventId 			= get_the_ID(); 	//Currnt event id
+	$fields 			= array('order_id'=>'Order Id','order_status'=>'Order Status','purchaser_name'=>'Customer Name','purchaser_email'=>'Customer email','purchase_time'=>'Registartion time','total'=>'Order total','payment_method_title'=>'Payment method','order_notes'=>'Order Notes');
+	$eventFields 		= array();
+	$eventArray 		= array();
+	$prep_event_fields_data = array();
+	foreach ($fields as $keyfields => $valuefields) {
+		$eventFields['slug'] 	= $keyfields;
+		$eventFields['name'] 	= $valuefields;
+		$eventArray [] 			= $eventFields;			
+	} 
+	$prep_event_fields_data = get_post_meta($eventId ,'all_export_exclude_order',true);
+	
+	ob_start();  ?>
+		<p> Check those fields that do not need to include in Tribe-All-Events-Export (csv) file. </p> <br>
+	<?php
+	foreach ($eventArray as $eventKey => $eventValue) {   
+			?>
+			<input type="checkbox" name="prep_order_fields[]" 
+				<?php 
+					if(in_array($eventValue['slug'], $prep_event_fields_data)) 
+						echo "checked";
+				?>
+				value="<?php echo $eventValue['slug']  ?>"
+			>
+			<?php echo $eventValue['name'] ?>
+			<br>
+			<?php 
+	}
+
+	$output .= ob_get_contents();
+	ob_end_clean();
+	print_r($output);
+	
+}
+
+
+function getShortcodeParam($shortCode){
+	$result = array();
+	//get shortcode regex pattern wordpress function
+	$pattern = get_shortcode_regex();
+	if (   preg_match_all( '/'. $pattern .'/s', $shortCode, $matches ) )
+		{
+		    $keys = array();
+		    $result = array();
+		    foreach( $matches[0] as $key => $value) {
+		        // $matches[3] return the shortcode attribute as string
+		        // replace space with '&' for parse_str() function
+		        $get = str_replace(" ", "&" , $matches[3][$key] );
+		        parse_str($get, $output);
+
+		        //get all shortcode attribute keys
+		        $keys = array_unique( array_merge(  $keys, array_keys($output)) );
+		        $result[] = $output;
+
+		    }
+		    if( $keys && $result ) {
+		        // Loop the result array and add the missing shortcode attribute key
+		        foreach ($result as $key => $value) {
+		            // Loop the shortcode attribute key
+		            foreach ($keys as $attr_key) {
+		                $result[$key][$attr_key] = isset( $result[$key][$attr_key] ) ? $result[$key][$attr_key] : NULL;
+		            }
+		            //sort the array key
+		            ksort( $result[$key]);              
+		        }
+		    }
+		    if(isset($result[0])){
+			    foreach ($result[0] as $key => $value) {
+			    	$implode = explode(',', $key);
+			    	if($implode && count($implode)>0){
+			    		break;
+			    	}
+			    }
+			    return $implode;
+			}
+			return false;
+		}
+}
 /*
 * Ends here:
 * 
@@ -88,208 +236,175 @@ function live_create_menu() {
 
 function tribe_events_export_page(){
 	$csvpath = getdwpath();
-
-global $woocommerce;
-	$AllEvents 				= tribe_get_events (array('posts_per_page' => '-1'));
-// echo '<pre>';
-// print_r($AllEvents);
-// echo '</pre>';
 ?>
-<div class='wrap'>
-<form method="post" name="exportform" onsubmit="return validateexportevents();">
-	<div>
-		<select name="exportselectedevents" id="seloptnid">
-			<option value="">Select Action</option>
-			<option value="1">Export Selected</option> 
-		</select>
-		<input type="submit" name="exportselectsubmit" value="Apply">
-	</div>
-	<table class="widefat" id="eventxports">
-	<thead>
-	    <tr>
-	        <th><input type="checkbox" class="seltall" value="" name="alleventsexport" onclick="selectallevents();"></th>
-	        <th>Event Name</th>       
-	    </tr>
-	</thead>
-	<tbody>
-	<?php
-	foreach ($AllEvents as $keyEvnts => $valueEvnts) {
-		
-	?>
-	   <tr>
-	     <td><input type="checkbox" name="allevent[]" class="actionallevents" value="<?php echo $valueEvnts->ID; ?>"></td>
-	     <td><?php echo $valueEvnts->post_title; ?></td>
-	   </tr>
-	  <?php } ?>
-	</tbody>
-	</table>
-</form>
-</div>
-<script type="text/javascript">
-  	/*
-  	* Select all events.
-  	* @Author Ajith @tblr
-  	*/
-	function selectallevents(){
-		var seltall = jQuery('.seltall').is(':checked');	
-		if(seltall){
-			 jQuery(".actionallevents").prop('checked', true);
-		}else{
-			jQuery(".actionallevents").prop('checked', false);
-		}
-	}
-	/*
-  	* Validate Export.
-  	* @Author Ajith @tblr
-	*/
-	function validateexportevents(){
-		var seloptnid = jQuery('#seloptnid').val();
-		if(seloptnid ==''){
-			alert('Select An Action.');
-			return false;
-		}
-		if(jQuery('#eventxports').find('input[type=checkbox]:checked').length == 0 && seloptnid !='')
-	    {
-	     	alert('Please select atleast one Event.');
-	     	return false;
-	    }else{
-	    	return true;
-	    }
-	}
-</script>
-
+	<a href="<?php echo $csvpath; ?>"> Download Csv </a>
 <?php
-$url 				= getDirCsv('check');
-$csvPath 			= getdwpath();
+	global $woocommerce;
+	$testing 				= tribe_get_events (array('posts_per_page' => '-1'));
+	$AllEventAttendeesExport= Array();
+	$titleFields 			= array();
+	$upsellIds 				= array();
+ 	foreach ($testing as $keysas => $valueas) {
+ 		$lastKey            = '';
+		$fields 			= array();
+		$fields 			= Tribe__Tickets_Plus__Main::instance()->meta()->get_meta_fields_by_event( $valueas->ID  );
+		$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Ticket';	
 
-$filename = $url."/Tribe-All-Events-Export.csv";
+		// edited on - 21-Aug : AJN 
+		$prep_event_fields_data = array();
+		$prep_event_fields_data = get_post_meta($valueas->ID ,'all_export_exclude',true);
 
-if (file_exists($filename)) { ?>
-   
-<?php }
+		$prep_order_fields_data = array();
+		$prep_order_fields_data = get_post_meta($valueas->ID ,'all_export_exclude_order',true);
 
-?>
-
-<a href="#0" id="triggerdownload" style="display: none;" onclick="downloadCsvfile()">Download</a>
-<script type="text/javascript">
-	function downloadCsvfile(){
- 		document.location = '<?php echo $csvPath; ?>';
-	}
-</script>
-<?php
-	if(isset($_POST['exportselectedevents']) && $_POST['exportselectsubmit'] == 'Apply'){
-echo '<pre>';
-print_r($_POST);
-echo '</pre>';
-
-		global $woocommerce;
-		$testing 				= tribe_get_events (array('posts_per_page' => '-1'));
-		$AllEventAttendeesExport= Array();
-		$titleFields 			= array();
-	 	foreach ($testing as $keysas => $valueas) {
-	 		$lastKey            = '';
-			$fields 			= array();
-			$fields 			= Tribe__Tickets_Plus__Main::instance()->meta()->get_meta_fields_by_event( $valueas->ID  );
-			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Ticket';	
-
-			// edited on - 21-Aug : AJN 
-			$prep_event_fields_data = array();
-			$prep_event_fields_data = get_post_meta($valueas->ID ,'all_export_exclude',true);
-			// ends here 
+		$prep_upsell_fields_data = array();
+		$prep_upsell_fields_data = get_post_meta($valueas->ID ,'all_export_exclude_upsell',true);
+		$categorieseUp = array();
+		foreach ($prep_upsell_fields_data as $upKey => $upValue) {
+			global $productObj;
+			$term_listseUp = wp_get_post_terms($upValue,'product_cat',array('fields'=>'all'));
+					  	foreach ( $term_listseUp as $termlsteUp ){
+			          		$categorieseUp[]  	= $termlsteUp->slug;
+			          	}
+			$productObj 			= wc_get_product( $upValue );
+			if( $productObj->is_type( 'variable' ) ){
+				$categorieseUp[] 	= 'variationExist';
+			}
+		}
+		// ends here 
 
 
-			// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Primary-Information';	
-			// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Security Code';
-			// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Check in';
-			foreach ($fields as $keyfields => $valuefields) {
-				if(!in_array($valuefields->slug, $prep_event_fields_data)){
-					$AllEventAttendeesExport[$valueas->ID]['titles'][] = $valuefields->label;
-					$lastKey = $keyfields;
-				}
-			} 
+		// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Primary-Information';	
+		// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Security Code';
+		// $AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Check in';
+		foreach ($fields as $keyfields => $valuefields) {
+			if(!in_array($valuefields->slug, $prep_event_fields_data)){
+				$AllEventAttendeesExport[$valueas->ID]['titles'][] = $valuefields->label;
+				$lastKey = $keyfields;
+			}
+		} 
+		$fields 			= $variable = get_field('upsells_shortcode', $eventId); 
+		$upsellIds 			= getShortcodeParam($fields);
+		if ( !in_array( 'order_id', $prep_order_fields_data ) ) { 
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Id';
+		}
+		if ( !in_array( 'order_status', $prep_order_fields_data ) ) { 
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Status';
-			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'custommer-name';		
+		}
+		if ( !in_array( 'purchaser_name', $prep_order_fields_data ) ) { 
+			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'custommer-name';	
+		}
+		if ( !in_array( 'purchaser_email', $prep_order_fields_data ) ) { 	
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'custommer-email';
+		}
+		if ( !in_array( 'purchase_time', $prep_order_fields_data ) ) { 
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Registration Date';
+		}
+		if ( !in_array( 'evaluation', $categorieseUp ) ) {  
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Evaluation Purchased';
+		}
+		if ( !in_array( 'insurance', $categorieseUp ) ) {  
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Insurance Purchased';
+		}
+		if ( !in_array( 'lifetime', $categorieseUp ) ) {  
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Rm Created';
+		}
+		if ( !in_array( 'variationExist', $categorieseUp ) ) {  
 			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'T shirt Purchased';
-			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Total';
-			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Payment Title';
-			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Notes';
-			$items = Tribe__Tickets__Tickets::get_event_attendees( $valueas->ID  );
-			foreach ($items as $keyI => $valueI) {	
-				$meta_data = get_post_meta( $valueI['attendee_id'], Tribe__Tickets_Plus__Meta::META_KEY, true );
+		}
 
-				if(!empty($meta_data)){
-					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueas->post_title;	
-					// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = '';
-					// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['security'];
-					// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['check_in'];
-					$CelKeyMta = '0';
-					foreach ($meta_data as $keyMta => $valueMta) {
-						if($CelKeyMta <= $lastKey){
-							if(!in_array($keyMta, $prep_event_fields_data)){ 
-								if($valueMta !='' && isset($valueMta)){
-									$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = stripslashes($valueMta);
-								}else{
-									$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'NULL';
-								}
+		if ( !in_array( 'total', $prep_order_fields_data ) ) { 
+			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Total';
+		}
+		if ( !in_array( 'payment_method_title', $prep_order_fields_data ) ) { 
+			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Payment Title';
+		}
+		if ( !in_array( 'order_notes', $prep_order_fields_data ) ) { 
+			$AllEventAttendeesExport[$valueas->ID]['titles'][] =  'Order Notes';
+		}
+		$items = Tribe__Tickets__Tickets::get_event_attendees( $valueas->ID  );
+		foreach ($items as $keyI => $valueI) {	
+			$meta_data = get_post_meta( $valueI['attendee_id'], Tribe__Tickets_Plus__Meta::META_KEY, true );
+
+			if(!empty($meta_data)){
+				$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueas->post_title;	
+				// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = '';
+				// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['security'];
+				// $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['check_in'];
+				$CelKeyMta = '0';
+				foreach ($meta_data as $keyMta => $valueMta) {
+					if($CelKeyMta <= $lastKey){
+						if(!in_array($keyMta, $prep_event_fields_data)){ 
+							if($valueMta !='' && isset($valueMta)){
+								$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = stripslashes($valueMta);
+							}else{
+								$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'NULL';
 							}
 						}
-						$CelKeyMta++;
 					}
+					$CelKeyMta++;
+				}
+
+				if ( !in_array( 'order_id', $prep_order_fields_data ) ) { 
 					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['order_id'];
+				}
+				if ( !in_array( 'order_status', $prep_order_fields_data ) ) {
 					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['order_status'];
+				}
+				if ( !in_array( 'purchaser_name', $prep_order_fields_data ) ) {
 					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['purchaser_name'];
+				}
+				if ( !in_array( 'purchaser_email', $prep_order_fields_data ) ) {
 					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['purchaser_email'];
+				}
+				if ( !in_array( 'purchase_time', $prep_order_fields_data ) ) {
 					$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $valueI['purchase_time'];
-					if($valueI['order_id'] != ''){
-					 	$order              = wc_get_order( (int) $valueI['order_id'] );  
-		   				$itemvals       	= $order->get_items();
-			  		 	$Names              = $meta_data['player-email']; 
-				    	//$categoriesexp      = '';
-				        $isLfpurchased 		= '0';
-				        $isInsurePched 		= '0';
-				        $isEvalPurchsd 		= '0';
-				        $isTshirtpursd 		= '0';
-				        $isEventPdtz		= '0';
-						$iSEvFlagz			= '0';
-						$EvntQtyz			= '0';
-						$MorePlayersz		= '0';
-					 	foreach ($itemvals as $atky => $Atendepage) {
-							$isEventPdtz    = get_post_meta($Atendepage['product_id'],'_tribe_wooticket_for_event',true);
-			                if($isEventPdtz){
-			                    $iSEvFlagz = '1';
-			                    $EvntQtyz  =  $Atendepage['quantity'];
-			                }
-			                if($iSEvFlagz == '1' && $EvntQtyz > 1){
-			                    $MorePlayersz = '1';
-			                }
-							$term_listsexp = wp_get_post_terms($Atendepage['product_id'],'product_cat',array('fields'=>'all'));
-						  	foreach ( $term_listsexp as $termlstexp ){
-				          		$categoriesexp[]  	= $termlstexp->slug;
-				               	if ( in_array( 'lifetime', $categoriesexp ) ) {        
-				                	$isLfpurchased  = '1';
-				               	}
-				               	if ( in_array( 'evaluation', $categoriesexp ) ) {        
-				                   	$isEvalPurchsd  = '1';
-				               	}
-				               	if ( in_array( 'insurance', $categoriesexp ) ) {        
-				                   	$isInsurePched  = '1';
-				               	} 
-				               	$categoriesexp      = array();               
-				           	}
-				           	$product_variation_id   = $Atendepage['variation_id'];
-				           	if($product_variation_id > 0){
-				               $isTshirtpursd      	= '1';
-				               $product_name       	= $Atendepage['name'];
-				               $quantity           	= $Atendepage['quantity'];
-				               $iSTshirt           	= $product_name.' : '.$quantity;
-				           	}
-					    }
+				}
+				if($valueI['order_id'] != ''){
+				 	$order              = wc_get_order( (int) $valueI['order_id'] );  
+	   				$itemvals       	= $order->get_items();
+		  		 	$Names              = $meta_data['player-email']; 
+			    	//$categoriesexp      = '';
+			        $isLfpurchased 		= '0';
+			        $isInsurePched 		= '0';
+			        $isEvalPurchsd 		= '0';
+			        $isTshirtpursd 		= '0';
+			        $isEventPdtz		= '0';
+					$iSEvFlagz			= '0';
+					$EvntQtyz			= '0';
+					$MorePlayersz		= '0';
+				 	foreach ($itemvals as $atky => $Atendepage) {
+						$isEventPdtz    = get_post_meta($Atendepage['product_id'],'_tribe_wooticket_for_event',true);
+		                if($isEventPdtz){
+		                    $iSEvFlagz = '1';
+		                    $EvntQtyz  =  $Atendepage['quantity'];
+		                }
+		                if($iSEvFlagz == '1' && $EvntQtyz > 1){
+		                    $MorePlayersz = '1';
+		                }
+						$term_listsexp = wp_get_post_terms($Atendepage['product_id'],'product_cat',array('fields'=>'all'));
+					  	foreach ( $term_listsexp as $termlstexp ){
+			          		$categoriesexp[]  	= $termlstexp->slug;
+			               	if ( in_array( 'lifetime', $categoriesexp ) ) {        
+			                	$isLfpurchased  = '1';
+			               	}
+			               	if ( in_array( 'evaluation', $categoriesexp ) ) {        
+			                   	$isEvalPurchsd  = '1';
+			               	}
+			               	if ( in_array( 'insurance', $categoriesexp ) ) {        
+			                   	$isInsurePched  = '1';
+			               	} 
+			               	$categoriesexp      = array();               
+			           	}
+			           	$product_variation_id   = $Atendepage['variation_id'];
+			           	if($product_variation_id > 0){
+			               $isTshirtpursd      	= '1';
+			               $product_name       	= $Atendepage['name'];
+			               $quantity           	= $Atendepage['quantity'];
+			               $iSTshirt           	= $product_name.' : '.$quantity;
+			           	}
+				    }
+				    if ( !in_array( 'evaluation', $categorieseUp ) ) {  
 				      	if($isEvalPurchsd == '1'){
 				            $evalplayers       	= get_post_meta( $valueI['order_id'], 'evals_selected_players', true );
 				            $evalArray         	= explode(',', $evalplayers );
@@ -307,6 +422,8 @@ echo '</pre>';
 				       	}else{
 				        	$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'No';
 				       	}
+				    }
+				    if ( !in_array( 'insurance', $categorieseUp ) ) {  
 				       	if($isInsurePched == '1'){
 		 					$insuplayers       	= get_post_meta( $valueI['order_id'], 'insure_selected_players', true );
 		            		$insArray          	= explode(',', $insuplayers );
@@ -324,6 +441,8 @@ echo '</pre>';
 				       	}else{
 				       		$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'No';
 				       	}
+				    }
+				    if ( !in_array( 'lifetime', $categorieseUp ) ) {  
 				       	if($isLfpurchased == '1'){
 							$rmplayers        	= get_post_meta( $valueI['order_id'], 'rm_created_player', true );
 					        $rmArray          	= explode(',', $rmplayers );
@@ -341,6 +460,8 @@ echo '</pre>';
 				       	}else{
 				       		$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'No';
 				       	}
+				    }
+				    if ( !in_array( 'variationExist', $categorieseUp ) ) {  
 						if($isTshirtpursd == '1'){		
 							$tSht = array();
 							foreach ( $itemvals as $itemvs ) {
@@ -355,8 +476,14 @@ echo '</pre>';
 						}else{
 							$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = 'No';
 						}
-				       	$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $order->total;
-					 	$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $order->payment_method_title;
+					}
+					if ( !in_array( 'total', $prep_order_fields_data ) ) { 
+			       		$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $order->total;
+			       	}
+			       	if ( !in_array( 'payment_method_title', $prep_order_fields_data ) ) { 
+				 		$AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = $order->payment_method_title;
+				 	}
+				 	if ( !in_array( 'order_notes', $prep_order_fields_data ) ) { 
 			            $notes_array    = array();
 			            $NoteZ          = array();
 			            $notes_array    =  tblr_export_get_all_order_notes($valueI['order_id']);
@@ -369,15 +496,15 @@ echo '</pre>';
 			            }else{
 			                $AllEventAttendeesExport[$valueas->ID]['Values'][$keyI][] = '';
 			            }
-					}
+			        }
 				}
 			}
 		}
-		// echo '<pre>';
-		// print_r($AllEventAttendeesExport);
-		// echo '</pre>';
-		prep_export_csv($AllEventAttendeesExport);
 	}
+	// echo '<pre>';
+	// print_r($AllEventAttendeesExport);
+	// echo '</pre>';
+	prep_export_csv($AllEventAttendeesExport);
 
 }
 /*
@@ -408,16 +535,8 @@ function prep_export_csv($AllEventAttendeesExport){
 	}
 	fclose($fh);
 	$headers = array(
-    			'Content-Type' => 'application/csv',
-    			'Content-Disposition' => 'attachment',
+    			'Content-Type' => 'text/csv',
 				);
-?>
-<script type="text/javascript">
- jQuery("#triggerdownload").trigger('click');
- jQuery("#triggerdownload").trigger("click");
-</script>
-<?php
-
 	exit;
   }
 
